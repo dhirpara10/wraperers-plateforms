@@ -2,8 +2,14 @@ name = "wraperers-platform"
 main = "src/index.js"
 compatibility_date = "2026-08-15"
 
-# No routes or custom domains yet: app.wraperers.com gets connected in a later step.
+# The portal lives on exactly one address. Never use a wildcard here:
+# wraperers.com, www and admin belong to the live wraperers-v2 Worker.
 workers_dev = false
+preview_urls = false
+
+[[routes]]
+pattern = "app.wraperers.com"
+custom_domain = true
 
 [[rules]]
 type = "Text"
@@ -20,7 +26,5 @@ APP_ORIGIN = "https://app.wraperers.com"
 [[d1_databases]]
 binding = "DB"
 database_name = "wraperers-platform-db"
-# Placeholder: replaced with the real id once the database is created in Cloudflare.
-# Local dev and tests work without it.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "3c94a174-a809-482c-b8bf-ef06d39234d4"
 migrations_dir = "migrations"
