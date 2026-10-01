@@ -1,0 +1,21 @@
+# Copy this file to .dev.vars for local development. .dev.vars is git-ignored.
+# NEVER put real values in this example file.
+# In production these are set with: npx wrangler secret put <NAME>
+
+# Local only: lets the Origin and host checks accept the local dev server.
+APP_ORIGIN=http://localhost:8787
+
+# Resend API key, for verification / reset / invite emails (milestone 1.2)
+RESEND_API_KEY=
+
+# Random string mixed into IP hashes so raw IPs are never stored (as in v2)
+IP_SALT=
+
+# Random 32-byte key (base64) used to encrypt authenticator-app secrets at rest (milestone 1.2)
+TOTP_ENC_KEY=
+
+# Cloudflare Turnstile secret, for bot checks on signup / login (milestone 1.2)
+TURNSTILE_SECRET=
+
+# Cloudflare API token limited to "SSL and Certificates: Custom Hostnames" (milestone 3)
+CF_API_TOKEN=

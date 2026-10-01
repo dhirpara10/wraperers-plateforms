@@ -1,0 +1,26 @@
+name = "wraperers-platform"
+main = "src/index.js"
+compatibility_date = "2026-08-15"
+
+# No routes or custom domains yet: app.wraperers.com gets connected in a later step.
+workers_dev = false
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html", "**/*.css", "**/*.client.js"]
+fallthrough = true
+
+[observability]
+enabled = true
+
+# Public settings only. Secrets go in `wrangler secret put` (see .dev.vars.example).
+[vars]
+APP_ORIGIN = "https://app.wraperers.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wraperers-platform-db"
+# Placeholder: replaced with the real id once the database is created in Cloudflare.
+# Local dev and tests work without it.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
