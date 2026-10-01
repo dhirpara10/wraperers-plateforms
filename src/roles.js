@@ -39,3 +39,16 @@ export function assignableRoles(access) {
 // Only the Wraperers platform owner creates new agency and brand organisations for now.
 // (Agencies creating brands for their clients comes with milestone 4.)
 export const CREATABLE_ORG_TYPES = ["agency", "brand"];
+
+// Who can create a site (store) in an organisation. access comes from getOrgAccess.
+//   - Wraperers owner and staff, in any organisation (building for clients; audit-logged)
+//   - owners of agencies and brands, and agency admins
+export function canCreateStore(access) {
+  if (!access) return false;
+  if (access.platformAccess || access.org.type === "platform") return true;
+  if (access.role === "owner") return true;
+  return access.org.type === "agency" && access.role === "admin";
+}
+
+// Most sites an organisation can have. A brand has its own one site.
+export const MAX_STORES = { platform: 100, agency: 100, brand: 1 };

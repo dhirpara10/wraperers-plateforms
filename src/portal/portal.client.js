@@ -69,6 +69,7 @@ function selectField(label, options) {
 
 const ROLE_LABELS = { owner: "Owner", staff: "Staff", admin: "Admin", member: "Member", editor: "Editor", viewer: "Viewer" };
 const TYPE_LABELS = { platform: "Wraperers", agency: "Agency", brand: "Brand" };
+const STATUS_LABELS = { draft: "Draft", live: "Live", suspended: "Suspended" };
 
 // A form with one error line and a button that disables while the request runs.
 function form(fields, buttonText, onSubmit) {
@@ -176,15 +177,19 @@ async function showHome() {
   const [orgs, sites] = await Promise.all([api("GET", "/api/orgs"), api("GET", "/api/stores")]);
   const { organisations = [], canCreate = false } = orgs.data;
   const stores = sites.data.stores ?? [];
+  const canCreateSite = organisations.some((org) => org.canCreateSite);
 
   const siteList = stores.length
     ? el("ul", { class: "list" }, stores.map((site) => el("li", {}, [
-        el("div", {}, [el("strong", { text: site.name }), el("div", { class: "hint", text: `${site.subdomain}.wraperers.com` })]),
-        el("span", { class: "tag", text: site.status }),
+        el("div", {}, [
+          el("a", { href: `#/site/${encodeURIComponent(site.id)}`, text: site.name }),
+          el("div", { class: "hint", text: `${site.subdomain}.wraperers.com` }),
+        ]),
+        el("span", { class: "tag", text: STATUS_LABELS[site.status] ?? site.status }),
       ])))
     : el("div", { class: "empty" }, [
         el("strong", { text: "No sites yet" }),
-        el("p", { class: "hint", text: "Soon you'll be able to create a site from a template here." }),
+        el("p", { class: "hint", text: canCreateSite ? "Create your first site to get started." : "When your team creates a site, it will show here." }),
       ]);
 
   const teamList = organisations.length
@@ -205,7 +210,11 @@ async function showHome() {
           el("a", { href: "#/security", text: "Make new ones" }),
         ])
       : null,
-    el("section", {}, [el("h2", { text: "Your sites" }), siteList]),
+    el("section", {}, [
+      el("h2", { text: "Your sites" }),
+      siteList,
+      canCreateSite ? el("a", { class: "link", href: "#/new-site", text: "+ New site" }) : null,
+    ]),
     el("section", {}, [
       el("h2", { text: canCreate ? "Teams" : "Your team" }),
       teamList,
@@ -226,6 +235,98 @@ function showSecurity() {
       el("p", { class: me.backupCodesLeft <= 2 ? "status bad" : "hint", text: `Backup codes left: ${me.backupCodesLeft} of 10` }),
       el("button", { class: "link", type: "button", text: "Make new backup codes", onclick: showRegenerate }),
     ])
+  );
+}
+
+// ---------- Sites ----------
+// Turns a site name into a suggested address: "Kurta Co." -> "kurta-co"
+function suggestSubdomain(name) {
+  return name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
+}
+
+async function showCreateSite() {
+  const res = await api("GET", "/api/orgs");
+  const orgs = (res.data.organisations ?? []).filter((org) => org.canCreateSite);
+  if (!orgs.length) {
+    return showPage(el("h1", { text: "New site" }), el("p", { text: "You can't create sites. Ask your team owner." }),
+      el("a", { class: "link", href: "#/", text: "Back" }));
+  }
+
+  const org = selectField("For", orgs.map((o) => [o.id, `${o.name} (${TYPE_LABELS[o.type]})`]));
+  const name = field("Site name", { type: "text", maxlength: "80", required: "", placeholder: "Kurta Co" });
+  const address = field("Address", {
+    type: "text", maxlength: "40", required: "", autocapitalize: "off", autocomplete: "off", spellcheck: "false", placeholder: "kurta-co",
+  });
+  const status = el("p", { class: "hint", "aria-live": "polite" });
+  address.row.querySelector("span").after(el("span", { class: "hint suffix", text: "Your free address: <name>.wraperers.com" }));
+  address.row.append(status);
+
+  // Suggest an address from the name, until the person types their own.
+  let addressEdited = false;
+  let timer;
+  const check = () => {
+    clearTimeout(timer);
+    const value = address.input.value.trim().toLowerCase();
+    status.className = "hint";
+    status.textContent = value ? `${value}.wraperers.com` : "";
+    if (!value) return;
+    timer = setTimeout(async () => {
+      const r = await api("GET", `/api/subdomains/check?name=${encodeURIComponent(value)}`);
+      if (address.input.value.trim().toLowerCase() !== value) return; // they kept typing
+      status.className = r.data.ok ? "hint good" : "hint bad-text";
+      status.textContent = r.data.ok ? `✓ ${value}.wraperers.com is available` : r.data.reason;
+    }, 350);
+  };
+  name.input.addEventListener("input", () => {
+    if (addressEdited) return;
+    address.input.value = suggestSubdomain(name.input.value);
+    check();
+  });
+  address.input.addEventListener("input", () => {
+    addressEdited = address.input.value !== "";
+    check();
+  });
+
+  showPage(
+    el("h1", { text: "New site" }),
+    orgs.length === 1 ? el("p", { class: "hint", text: `For ${orgs[0].name}` }) : null,
+    form(orgs.length === 1 ? [name, address] : [org, name, address], "Create site", async () => {
+      const r = await api("POST", "/api/stores", {
+        organisationId: orgs.length === 1 ? orgs[0].id : org.input.value,
+        name: name.input.value,
+        subdomain: address.input.value,
+      });
+      if (!r.ok) return r.data.error || "Something went wrong.";
+      go(`/site/${r.data.store.id}`);
+    }),
+    el("a", { class: "link", href: "#/", text: "Back" })
+  );
+}
+
+async function showSite(storeId) {
+  const res = await api("GET", `/api/stores/${encodeURIComponent(storeId)}`);
+  if (res.status === 401) return showLogin();
+  if (!res.ok) {
+    return showPage(el("h1", { text: "Site not found" }), el("p", { text: "It doesn't exist, or you don't have access to it." }),
+      el("a", { class: "link", href: "#/", text: "Back to home" }));
+  }
+  const { store, organisation, yourRole, platformAccess } = res.data;
+  const facts = (rows) => el("dl", { class: "facts" }, rows.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", {}, [v])]));
+
+  showPage(
+    el("h1", { text: store.name }),
+    platformAccess ? el("p", { class: "status", text: "You are viewing this site as Wraperers support. This is recorded in the audit log." }) : null,
+    facts([
+      ["Address", el("span", { text: `${store.subdomain}.wraperers.com` })],
+      ["Status", el("span", { class: "tag", text: STATUS_LABELS[store.status] ?? store.status })],
+      ["Team", el("a", { href: `#/team/${encodeURIComponent(organisation.id)}`, text: `${organisation.name} (${TYPE_LABELS[organisation.type]})` })],
+      ["Your role", el("span", { text: yourRole ? ROLE_LABELS[yourRole] : "Wraperers support" })],
+    ]),
+    el("div", { class: "empty" }, [
+      el("strong", { text: "Not online yet" }),
+      el("p", { class: "hint", text: "Next: pages and the editor. After that, publishing to your address." }),
+    ]),
+    el("a", { class: "link", href: "#/", text: "Back" })
   );
 }
 
@@ -449,6 +550,8 @@ const PAGES = [
   [/^(#\/?)?$/, () => showHome()],
   [/^#\/security$/, () => showSecurity()],
   [/^#\/new-org$/, () => showCreateOrg()],
+  [/^#\/new-site$/, () => showCreateSite()],
+  [/^#\/site\/([0-9a-f-]{36})$/, (id) => showSite(id)],
   [/^#\/team\/([0-9a-f-]{36})$/, (id) => showTeam(id)],
 ];
 

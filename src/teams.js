@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { audit } from "./security.js";
 import { requireOrgAccess } from "./tenancy.js";
-import { ORG_ROLES, assignableRoles, CREATABLE_ORG_TYPES } from "./roles.js";
+import { ORG_ROLES, assignableRoles, canCreateStore, CREATABLE_ORG_TYPES } from "./roles.js";
+import { readJson, cleanName } from "./util.js";
 import { cleanEmail } from "./auth/routes.js";
 import { randomBytes, toBase64Url, sha256Hex } from "./auth/encoding.js";
 import { hashPassword, passwordProblem } from "./auth/password.js";
@@ -22,17 +23,6 @@ const WINDOW = 15 * 60;
 
 const NOT_ALLOWED = "You can't manage this team.";
 const BAD_INVITE = "This invite link is not valid, was already used, or has expired.";
-
-async function readJson(c) {
-  const body = await c.req.json().catch(() => null);
-  return body && typeof body === "object" ? body : {};
-}
-
-// Names: trimmed, no control characters, 1-80 characters.
-function cleanName(value) {
-  const name = String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim();
-  return name.length >= 1 && name.length <= 80 ? name : null;
-}
 
 // Audit details for an action on a team, flagged when Wraperers staff act on someone else's team.
 const orgAudit = (access, target) => ({
@@ -69,7 +59,12 @@ teams.get("/orgs", requireAuth, async (c) => {
     .bind(user.id, platform ? 1 : 0)
     .all();
 
-  return c.json({ organisations: results, canCreate: platform?.role === "owner" });
+  const organisations = results.map((org) => {
+    // No role here means the user sees this organisation through Wraperers (platform) membership.
+    const access = { org, role: org.role ?? platform?.role, platformAccess: !org.role };
+    return { ...org, canCreateSite: canCreateStore(access) };
+  });
+  return c.json({ organisations, canCreate: platform?.role === "owner" });
 });
 
 // Create an agency or brand organisation (Wraperers platform owner only, for now).

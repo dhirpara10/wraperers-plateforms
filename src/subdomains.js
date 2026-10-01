@@ -20,3 +20,14 @@ export function cleanSubdomain(value) {
   if (RESERVED_SUBDOMAINS.has(name)) return null;
   return name;
 }
+
+// Same rules as cleanSubdomain, but says what is wrong (for the portal). null = fine.
+export function subdomainProblem(value) {
+  const name = String(value ?? "").trim().toLowerCase();
+  if (name.length < 3 || name.length > 40) return "Use 3 to 40 characters.";
+  if (!/^[a-z0-9-]+$/.test(name)) return "Use only letters, numbers and hyphens (-).";
+  if (name.startsWith("-") || name.endsWith("-")) return "It can't start or end with a hyphen.";
+  if (name.includes("--")) return "It can't contain two hyphens in a row.";
+  if (RESERVED_SUBDOMAINS.has(name)) return "That name is reserved. Please choose another.";
+  return cleanSubdomain(name) ? null : "That name isn't allowed.";
+}
