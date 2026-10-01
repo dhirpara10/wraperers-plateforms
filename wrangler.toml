@@ -26,5 +26,5 @@ APP_ORIGIN = "https://app.wraperers.com"
 [[d1_databases]]
 binding = "DB"
 database_name = "wraperers-platform-db"
-database_id = "3c94a174-a809-482c-b8bf-ef06d39234d4"
+database_id = "c906b221-eaee-461d-a5cb-db5a42dd852d"
 migrations_dir = "migrations"
