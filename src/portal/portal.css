@@ -35,15 +35,95 @@ body {
   letter-spacing: 0.02em;
 }
 
-h1 { margin: 0 0 8px; font-size: 1.7rem; line-height: 1.15; }
-p { margin: 0 0 8px; }
+h1 { margin: 0 0 12px; font-size: 1.7rem; line-height: 1.15; }
+h2 { margin: 24px 0 6px; font-size: 1.05rem; }
+p { margin: 0 0 10px; line-height: 1.45; }
+
+.hint { color: #5b5d63; font-size: 0.92rem; }
+
+.field { display: block; margin: 14px 0; }
+.field span { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.92rem; }
+.field input {
+  width: 100%;
+  padding: 12px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+  border: 2px solid var(--text);
+  border-radius: 10px;
+}
+.field input:focus-visible,
+.button:focus-visible,
+.link:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+
+.button {
+  width: 100%;
+  margin-top: 6px;
+  padding: 13px 16px;
+  font: inherit;
+  font-weight: 800;
+  color: #fff;
+  background: var(--orange);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--orange-shadow);
+  cursor: pointer;
+}
+.button:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--orange-shadow); }
+.button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.link {
+  display: block;
+  margin-top: 14px;
+  padding: 0;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--text);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.error { min-height: 1.3em; margin: 0 0 6px; color: #B3261E; font-weight: 600; font-size: 0.92rem; }
+
+.qr { display: block; width: 200px; height: 200px; margin: 14px auto; border-radius: 8px; }
+
+.secret {
+  display: block;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  word-spacing: 0.2em;
+  overflow-wrap: anywhere;
+}
+
+.codes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 14px 0 4px;
+  padding: 14px;
+  list-style: none;
+  background: var(--bg);
+  border-radius: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.95rem;
+}
+
+.check { display: flex; align-items: center; gap: 10px; margin: 16px 0 10px; font-weight: 600; }
+.check input { width: 20px; height: 20px; accent-color: var(--orange); }
+
+.list { margin: 0; padding: 0; list-style: none; }
+.list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; }
+.tag { padding: 3px 10px; background: var(--bg); border-radius: 999px; font-size: 0.82rem; }
 
 .status {
-  margin-top: 20px;
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--bg);
   font-size: 0.9rem;
 }
-.status.ok { background: #DDF3E0; }
 .status.bad { background: #FBDCD5; }

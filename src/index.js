@@ -1,16 +1,20 @@
 import { Hono } from "hono";
 import { securityHeaders, applySecurityHeaders, requirePortalHost, requireSameOrigin } from "./security.js";
 import { AccessDenied } from "./tenancy.js";
+import { loadSession } from "./auth/sessions.js";
+import auth from "./auth/routes.js";
 import portalHtml from "./portal/index.html";
 import portalCss from "./portal/portal.css";
 import portalJs from "./portal/portal.client.js";
 
 const app = new Hono();
 
-// Order matters: headers on every response, then host check, then Origin check.
+// Order matters: headers on every response, then host check, then Origin check,
+// and only then is the session cookie read.
 app.use("*", securityHeaders);
 app.use("*", requirePortalHost);
 app.use("*", requireSameOrigin);
+app.use("/api/*", loadSession);
 
 // ---------- Static portal files (same origin, so the CSP allows them) ----------
 app.get("/assets/portal.css", (c) => c.body(portalCss, 200, { "Content-Type": "text/css; charset=utf-8" }));
@@ -28,6 +32,8 @@ app.get("/api/health", async (c) => {
     return c.json({ ok: false }, 503);
   }
 });
+
+app.route("/api", auth);
 
 app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
 

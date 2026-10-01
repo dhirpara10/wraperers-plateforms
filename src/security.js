@@ -1,5 +1,6 @@
 // Adapted from wraperers-v2/src/security.js. No Cloudflare Access here:
-// the portal has its own login (added in milestone 1.2).
+// the portal has its own login (src/auth).
+import { ipHash } from "./auth/sessions.js";
 
 // ---------- Output escaping: use for EVERY piece of user text shown in HTML ----------
 const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -62,23 +63,25 @@ export const requireSameOrigin = async (c, next) => {
 };
 
 // ---------- Audit log helper ----------
-// details: { target, storeId, organisationId, platformAccess }
+// details: { target, storeId, organisationId, platformAccess, userId, email }
+// userId/email are for events with no signed-in user yet (e.g. a failed login).
 export async function audit(c, action, details = {}) {
   const user = c.get("user");
   await c.env.DB
     .prepare(
-      `INSERT INTO audit_log (id, user_id, user_email, organisation_id, store_id, action, target, platform_access)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO audit_log (id, user_id, user_email, organisation_id, store_id, action, target, platform_access, ip_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       crypto.randomUUID(),
-      user?.id ?? null,
-      user?.email ?? "unknown",
+      details.userId ?? user?.id ?? null,
+      String(details.email ?? user?.email ?? "unknown").slice(0, 254),
       details.organisationId ?? null,
       details.storeId ?? null,
       action,
       details.target ?? null,
-      details.platformAccess ? 1 : 0
+      details.platformAccess ? 1 : 0,
+      await ipHash(c)
     )
     .run();
 }

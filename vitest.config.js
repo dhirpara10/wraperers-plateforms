@@ -10,7 +10,13 @@ export default defineConfig(async () => {
       cloudflareTest({
         wrangler: { configPath: "./wrangler.toml" },
         miniflare: {
-          bindings: { TEST_MIGRATIONS: migrations, APP_ORIGIN: "https://app.wraperers.com" },
+          bindings: {
+            TEST_MIGRATIONS: migrations,
+            APP_ORIGIN: "https://app.wraperers.com",
+            // Throwaway values for tests only. Real ones are Worker secrets.
+            IP_SALT: "test-salt",
+            TOTP_ENC_KEY: "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+          },
         },
       }),
     ],

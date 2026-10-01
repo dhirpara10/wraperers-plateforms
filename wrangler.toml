@@ -28,3 +28,10 @@ binding = "DB"
 database_name = "wraperers-platform-db"
 database_id = "c906b221-eaee-461d-a5cb-db5a42dd852d"
 migrations_dir = "migrations"
+
+# Local development only: without this, `wrangler dev` pretends requests arrive on
+# app.wraperers.com (from the route above) and the Origin check rejects localhost.
+[dev]
+host = "localhost:8787"
+upstream_protocol = "http"
+port = 8787

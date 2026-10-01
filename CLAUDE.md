@@ -82,9 +82,11 @@ A multi-store platform where people log in, build sites, host them and connect d
 - Audit log for logins, role changes, publishes, domain changes, deletes, and all platform-staff access.
 
 ### Milestones
-1. **Foundation** ← start here
-   1. New project, D1 schema, `app.wraperers.com` connected
-   2. Signup, email verification, login, two-step setup, backup codes, password reset, sessions, lockout
+1. **Foundation** ← in progress
+   1. New project, D1 schema, `app.wraperers.com` connected — DONE (behind Cloudflare Access for now)
+   2. Login. Built without email first (decided 2 Oct 2026):
+      - DONE: password hashing, sessions, login with rate limits and lockout, required authenticator (TOTP) two-step, backup codes, audit entries, `npm run create-owner` for the first platform owner
+      - LATER, when email (Resend) is set up: signup with email verification, email-code two-step option, password reset by email, invites by email. Until then invites produce a one-time link that Dhruv sends himself (WhatsApp/Instagram).
    3. Organisations (platform / agency / brand), memberships + roles, team invites by email
    4. Portal home: "Your sites" (empty) and "Your team"
 2. **Sites:** create a site from a template; the v2 block editor, code mode, history, media and settings, all scoped per store
@@ -113,6 +115,8 @@ A multi-store platform where people log in, build sites, host them and connect d
 
 - `src/index.js` — the Worker entry: host check, security headers, Origin check, routes
 - `src/security.js` — `escapeHtml`, `securityHeaders`, `requireSameOrigin`, `audit` (adapted from v2; no Cloudflare Access)
+- `src/auth/` — login: `password.js` (PBKDF2), `sessions.js` (`__Host-session` cookie, `loadSession`, `requireAuth`), `totp.js` (authenticator codes, secret encryption, backup codes), `rate-limit.js`, `routes.js` (the `/api/auth/*` endpoints and `/api/me`)
+- `scripts/create-owner.mjs` — one-time script that creates the platform organisation and first owner
 - `src/subdomains.js` — `RESERVED_SUBDOMAINS` and `cleanSubdomain`
 - `src/roles.js` — organisation types and the roles each type allows
 - `src/tenancy.js` — tenant-isolation helpers; every store lookup must go through these
@@ -122,4 +126,6 @@ A multi-store platform where people log in, build sites, host them and connect d
 
 Rule for new tables: every table is either store-owned (must have a `store_id` column) or listed in `GLOBAL_TABLES` in `src/tenancy.js`. `test/schema.test.js` fails otherwise.
 
-Commands: `npm run dev` (local server on http://localhost:8787), `npm test`, `npm run db:migrate:local`.
+Commands: `npm run dev` (local server on http://localhost:8787), `npm test`, `npm run db:migrate:local`, `npm run create-owner -- --local`.
+
+Every route that needs a signed-in user must use `requireAuth` (password AND two-step passed). Worker secrets in use: `IP_SALT`, `TOTP_ENC_KEY`.

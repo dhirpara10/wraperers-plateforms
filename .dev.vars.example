@@ -5,16 +5,23 @@
 # Local only: lets the Origin and host checks accept the local dev server.
 APP_ORIGIN=http://localhost:8787
 
-# Resend API key, for verification / reset / invite emails (milestone 1.2)
-RESEND_API_KEY=
+# --- Needed now (login) ---
 
-# Random string mixed into IP hashes so raw IPs are never stored (as in v2)
+# Random string mixed into IP hashes so raw IPs are never stored (as in v2).
+# Generate with: openssl rand -base64 24
 IP_SALT=
 
-# Random 32-byte key (base64) used to encrypt authenticator-app secrets at rest (milestone 1.2)
+# Random 32-byte key (base64) used to encrypt authenticator-app secrets at rest.
+# Generate with: openssl rand -base64 32
+# Losing or changing this key means every user must set up two-step login again.
 TOTP_ENC_KEY=
 
-# Cloudflare Turnstile secret, for bot checks on signup / login (milestone 1.2)
+# --- Needed later ---
+
+# Resend API key, for verification / reset / invite emails (when email is added)
+RESEND_API_KEY=
+
+# Cloudflare Turnstile secret, for bot checks on signup (when signup is added)
 TURNSTILE_SECRET=
 
 # Cloudflare API token limited to "SSL and Certificates: Custom Hostnames" (milestone 3)
