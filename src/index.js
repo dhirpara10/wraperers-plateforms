@@ -4,6 +4,7 @@ import { AccessDenied } from "./tenancy.js";
 import { loadSession } from "./auth/sessions.js";
 import auth from "./auth/routes.js";
 import teams from "./teams.js";
+import stores from "./stores.js";
 import portalHtml from "./portal/index.html";
 import portalCss from "./portal/portal.css";
 import portalJs from "./portal/portal.client.js";
@@ -36,6 +37,7 @@ app.get("/api/health", async (c) => {
 
 app.route("/api", auth);
 app.route("/api", teams);
+app.route("/api", stores);
 
 app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
 

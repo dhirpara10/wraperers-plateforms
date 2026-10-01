@@ -88,7 +88,7 @@ A multi-store platform where people log in, build sites, host them and connect d
       - DONE: password hashing, sessions, login with rate limits and lockout, required authenticator (TOTP) two-step, backup codes, audit entries, `npm run create-owner` for the first platform owner
       - LATER, when email (Resend) is set up: signup with email verification, email-code two-step option, password reset by email, invites by email. Until then invites produce a one-time link that Dhruv sends himself (WhatsApp/Instagram).
    3. Organisations (platform / agency / brand), memberships + roles, team invites — DONE with one-time invite links (no email yet). Only the platform owner creates agency/brand organisations for now. Invites by email come with Resend.
-   4. Portal home: "Your sites" (empty) and "Your team"
+   4. Portal home: "Your sites" (empty) and "Your team" — DONE. Signed-in pages have their own addresses (`#/`, `#/security`, `#/team/<id>`, `#/new-org`), so refresh and Back work
 2. **Sites:** create a site from a template; the v2 block editor, code mode, history, media and settings, all scoped per store
 3. **Hosting:** serve sites on `<store>.wraperers.com` (wildcard routing; reserved names blocked), then custom domains via Cloudflare for SaaS with a DNS-instructions screen and live status
 4. **Team and clients:** agency → brand handover and invites with limited access
@@ -120,6 +120,7 @@ A multi-store platform where people log in, build sites, host them and connect d
 - `src/subdomains.js` — `RESERVED_SUBDOMAINS` and `cleanSubdomain`
 - `src/roles.js` — organisation types and the roles each type allows
 - `src/tenancy.js` — tenant-isolation helpers (`getStoreAccess`, `getOrgAccess`...); every store or team lookup must go through these
+- `src/stores.js` — sites (stores) API; for now only `GET /api/stores` (the "Your sites" list, via `listStoresForUser`)
 - `src/teams.js` — organisations, team members, roles, and one-time invite links (`/api/orgs/*`, `/api/invites/*`). Who can hand out which role is `assignableRoles` in `src/roles.js`
 - `src/portal/` — portal HTML/CSS/JS, loaded as text and served from the same origin (no inline scripts or styles)
 - `migrations/` — D1 migrations, applied in order. Never edit an applied migration; add a new one.

@@ -27,9 +27,34 @@ async function api(method, path, body) {
   return { ok: res.ok, status: res.status, data };
 }
 
+// Sign-in screens: the small centred card.
 function show(...nodes) {
+  document.body.classList.remove("app");
   view.replaceChildren(...nodes.filter(Boolean));
   view.querySelector("input")?.focus();
+}
+
+// Signed-in pages: wide layout with the top bar. Set by renderPage() on every page load.
+let me = null;
+
+function showPage(...nodes) {
+  document.body.classList.add("app");
+  const here = location.hash.startsWith("#/security") ? "security" : "home";
+  const navLink = (href, text, name) => el("a", here === name ? { href, text, "aria-current": "page" } : { href, text });
+  const nav = el("nav", { "aria-label": "Main" }, [
+    navLink("#/", "Home", "home"),
+    navLink("#/security", "Security", "security"),
+    signOutLink("Sign out", "link inline"),
+  ]);
+  view.replaceChildren(
+    el("header", { class: "topbar" }, [
+      el("a", { class: "logo", href: "#/", text: "Wraperers" }),
+      el("span", { class: "who", text: me?.user.email ?? "" }),
+      nav,
+    ]),
+    el("div", { class: "page" }, nodes.filter(Boolean))
+  );
+  window.scrollTo(0, 0);
 }
 
 function field(label, attrs) {
@@ -112,7 +137,7 @@ function showBackupCodes(codes, firstTime) {
   const saved = el("input", { type: "checkbox", id: "saved" });
   const button = el("button", { class: "button", text: "Continue", disabled: "", onclick: () => route("signed_in") });
   saved.addEventListener("change", () => (button.disabled = !saved.checked));
-  show(
+  (firstTime ? show : showPage)(
     el("h1", { text: firstTime ? "Save your backup codes" : "Your new backup codes" }),
     el("p", { text: "If you lose your phone, each of these codes lets you sign in once. They are shown only this one time. Keep them somewhere safe, like a password manager." }),
     el("ul", { class: "codes" }, codes.map((code) => el("li", { text: code }))),
@@ -148,53 +173,84 @@ function showTwoStep(useBackup = false) {
 }
 
 async function showHome() {
-  const res = await api("GET", "/api/me");
-  if (res.data.state !== "signed_in") return route(res.data.state);
-  const { user, backupCodesLeft } = res.data;
-  const orgs = await api("GET", "/api/orgs");
+  const [orgs, sites] = await Promise.all([api("GET", "/api/orgs"), api("GET", "/api/stores")]);
   const { organisations = [], canCreate = false } = orgs.data;
+  const stores = sites.data.stores ?? [];
 
-  const teams = organisations.length
+  const siteList = stores.length
+    ? el("ul", { class: "list" }, stores.map((site) => el("li", {}, [
+        el("div", {}, [el("strong", { text: site.name }), el("div", { class: "hint", text: `${site.subdomain}.wraperers.com` })]),
+        el("span", { class: "tag", text: site.status }),
+      ])))
+    : el("div", { class: "empty" }, [
+        el("strong", { text: "No sites yet" }),
+        el("p", { class: "hint", text: "Soon you'll be able to create a site from a template here." }),
+      ]);
+
+  const teamList = organisations.length
     ? el("ul", { class: "list" }, organisations.map((org) => el("li", {}, [
-        el("button", { class: "link inline", type: "button", text: org.name, onclick: () => showTeam(org.id) }),
+        el("a", { href: `#/team/${encodeURIComponent(org.id)}`, text: org.name }),
         el("span", { class: "tag", text: `${TYPE_LABELS[org.type]}${org.role ? " · " + ROLE_LABELS[org.role] : ""}` }),
       ])))
-    : el("p", { class: "hint", text: "You are not part of a team yet." });
+    : el("div", { class: "empty" }, [
+        el("strong", { text: "You are not part of a team yet" }),
+        el("p", { class: "hint", text: "Ask your team owner to send you an invite link." }),
+      ]);
 
-  show(
-    el("h1", { text: `Hello${user.name ? ", " + user.name : ""}` }),
-    el("p", { class: "hint", text: `Signed in as ${user.email}` }),
-    el("h2", { text: "Your sites" }),
-    el("p", { class: "hint", text: "No sites yet. Creating sites comes in the next milestone." }),
-    el("h2", { text: canCreate ? "Teams" : "Your team" }),
-    teams,
-    canCreate ? el("button", { class: "link", type: "button", text: "+ New agency or brand", onclick: showCreateOrg }) : null,
-    el("h2", { text: "Security" }),
-    el("p", { class: backupCodesLeft <= 2 ? "status bad" : "hint", text: `Backup codes left: ${backupCodesLeft}` }),
-    el("button", { class: "link", type: "button", text: "Make new backup codes", onclick: showRegenerate }),
-    signOutLink("Sign out")
+  showPage(
+    el("h1", { text: `Hello${me.user.name ? ", " + me.user.name : ""}` }),
+    me.backupCodesLeft <= 2
+      ? el("p", { class: "status bad" }, [
+          el("span", { text: `Only ${me.backupCodesLeft} backup codes left. ` }),
+          el("a", { href: "#/security", text: "Make new ones" }),
+        ])
+      : null,
+    el("section", {}, [el("h2", { text: "Your sites" }), siteList]),
+    el("section", {}, [
+      el("h2", { text: canCreate ? "Teams" : "Your team" }),
+      teamList,
+      canCreate ? el("a", { class: "link", href: "#/new-org", text: "+ New agency or brand" }) : null,
+    ])
+  );
+}
+
+function showSecurity() {
+  showPage(
+    el("h1", { text: "Security" }),
+    el("section", {}, [
+      el("h2", { text: "Two-step login" }),
+      el("p", { text: "On. You sign in with your password and a code from your authenticator app." }),
+    ]),
+    el("section", {}, [
+      el("h2", { text: "Backup codes" }),
+      el("p", { class: me.backupCodesLeft <= 2 ? "status bad" : "hint", text: `Backup codes left: ${me.backupCodesLeft} of 10` }),
+      el("button", { class: "link", type: "button", text: "Make new backup codes", onclick: showRegenerate }),
+    ])
   );
 }
 
 function showCreateOrg() {
   const type = selectField("Type", [["brand", "Brand"], ["agency", "Agency"]]);
   const name = field("Name", { type: "text", maxlength: "80", required: "" });
-  show(
+  showPage(
     el("h1", { text: "New agency or brand" }),
     el("p", { class: "hint", text: "After creating it, invite its owner from the team page." }),
     form([type, name], "Create", async () => {
       const res = await api("POST", "/api/orgs", { type: type.input.value, name: name.input.value });
       if (!res.ok) return res.data.error || "Something went wrong.";
-      showTeam(res.data.organisation.id);
+      go(`/team/${res.data.organisation.id}`);
     }),
-    el("button", { class: "link", type: "button", text: "Back", onclick: showHome })
+    el("a", { class: "link", href: "#/", text: "Back" })
   );
 }
 
 async function showTeam(orgId) {
   const res = await api("GET", `/api/orgs/${encodeURIComponent(orgId)}/team`);
   if (res.status === 401) return showLogin();
-  if (!res.ok) return showMessage(res.data.error);
+  if (!res.ok) {
+    return showPage(el("h1", { text: "Team not found" }), el("p", { text: "It doesn't exist, or you don't have access to it." }),
+      el("a", { class: "link", href: "#/", text: "Back to home" }));
+  }
   const team = res.data;
   const roles = team.assignableRoles;
   const canManage = roles.length > 0;
@@ -203,12 +259,17 @@ async function showTeam(orgId) {
   const act = async (method, path, body, leftTeam = false) => {
     const r = await api(method, path, body);
     if (!r.ok) alert(r.data.error || "Something went wrong.");
-    if (r.ok && leftTeam) return showHome();
+    if (r.ok && leftTeam) return go("/");
     showTeam(orgId);
   };
   const base = `/api/orgs/${encodeURIComponent(orgId)}`;
 
-  const members = el("ul", { class: "list" }, team.members.map((m) => {
+  const members = !team.members.length
+    ? el("div", { class: "empty" }, [
+        el("strong", { text: "No members yet" }),
+        el("p", { class: "hint", text: canManage ? "Invite the owner below." : "" }),
+      ])
+    : el("ul", { class: "list" }, team.members.map((m) => {
     const who = el("div", {}, [
       el("strong", { text: m.name || m.email }),
       el("div", { class: "hint", text: m.isYou ? `${m.email} (you)` : m.email }),
@@ -255,7 +316,7 @@ async function showTeam(orgId) {
     });
   }
 
-  show(
+  showPage(
     el("h1", { text: team.organisation.name }),
     el("p", { class: "hint", text: `${TYPE_LABELS[team.organisation.type]}${team.yourRole ? " · you are " + ROLE_LABELS[team.yourRole] : ""}` }),
     team.platformAccess ? el("p", { class: "status", text: "You are viewing this team as Wraperers support. This is recorded in the audit log." }) : null,
@@ -265,12 +326,12 @@ async function showTeam(orgId) {
     pending,
     inviteForm ? el("h2", { text: "Invite someone" }) : null,
     inviteForm,
-    el("button", { class: "link", type: "button", text: "Back", onclick: showHome })
+    el("a", { class: "link", href: "#/", text: "Back" })
   );
 }
 
 function showInviteLink(orgId, data) {
-  show(
+  showPage(
     el("h1", { text: "Invite link ready" }),
     el("p", { text: `Send this link to ${data.invite.email} yourself (WhatsApp, Instagram...). It works once and expires in ${data.days} days.` }),
     el("code", { class: "secret", text: data.link }),
@@ -294,7 +355,7 @@ async function showInvite(token) {
   if (!res.ok) {
     setPendingInvite(null);
     return show(el("h1", { text: "Invite" }), el("p", { text: res.data.error || "Something went wrong." }),
-      el("button", { class: "link", type: "button", text: "Go to the portal", onclick: start }));
+      el("button", { class: "link", type: "button", text: "Go to the portal", onclick: () => go("/") }));
   }
   const inv = res.data;
   const intro = el("p", { text: `You're invited to join ${inv.organisation.name} (${TYPE_LABELS[inv.organisation.type]}) as ${ROLE_LABELS[inv.role]}.` });
@@ -306,9 +367,9 @@ async function showInvite(token) {
           const r = await api("POST", "/api/invites/accept", { token });
           if (!r.ok) return r.data.error || "Something went wrong.";
           setPendingInvite(null);
-          showTeam(r.data.organisationId);
+          go(`/team/${r.data.organisationId}`);
         }),
-        el("button", { class: "link", type: "button", text: "Not now", onclick: () => { setPendingInvite(null); showHome(); } }));
+        el("button", { class: "link", type: "button", text: "Not now", onclick: () => { setPendingInvite(null); go("/"); } }));
     }
     setPendingInvite(token);
     return show(el("h1", { text: "Join the team" }), intro,
@@ -343,7 +404,7 @@ async function showInvite(token) {
 
 function showRegenerate() {
   const code = field("6-digit code from your authenticator app", codeAttrs);
-  show(
+  showPage(
     el("h1", { text: "Make new backup codes" }),
     el("p", { text: "Your old backup codes will stop working." }),
     form([code], "Make new codes", async () => {
@@ -351,7 +412,7 @@ function showRegenerate() {
       if (!res.ok) return res.data.error || "Something went wrong.";
       showBackupCodes(res.data.backupCodes, false);
     }),
-    el("button", { class: "link", type: "button", text: "Back", onclick: showHome })
+    el("a", { class: "link", href: "#/security", text: "Back" })
   );
 }
 
@@ -359,11 +420,12 @@ function showMessage(text) {
   show(el("h1", { text: "Please wait" }), el("p", { text: text || "Something went wrong." }), signOutLink("Back to sign in"));
 }
 
-function signOutLink(text) {
+function signOutLink(text, className = "link") {
   return el("button", {
-    class: "link", type: "button", text,
+    class: className, type: "button", text,
     onclick: async () => {
       await api("POST", "/api/auth/logout");
+      me = null;
       const pending = getPendingInvite();
       pending ? showInvite(pending) : showLogin();
     },
@@ -374,25 +436,49 @@ function signOutLink(text) {
 function route(state) {
   if (state === "signed_in") {
     const pending = getPendingInvite();
-    return pending ? showInvite(pending) : showHome();
+    return pending ? showInvite(pending) : renderPage();
   }
   if (state === "needs_two_step") return showTwoStep();
   if (state === "needs_setup") return showSetup();
   return showLogin();
 }
 
-function start() {
-  api("GET", "/api/me")
-    .then((res) => route(res.data.state))
-    .catch(() => showMessage("Could not reach the server."));
+// Signed-in pages have their own address (#/...), so refresh and Back keep your place.
+// Signing in from a saved address lands on that page.
+const PAGES = [
+  [/^(#\/?)?$/, () => showHome()],
+  [/^#\/security$/, () => showSecurity()],
+  [/^#\/new-org$/, () => showCreateOrg()],
+  [/^#\/team\/([0-9a-f-]{36})$/, (id) => showTeam(id)],
+];
+
+async function renderPage() {
+  const res = await api("GET", "/api/me");
+  if (res.data.state !== "signed_in") return route(res.data.state);
+  me = res.data;
+  for (const [pattern, page] of PAGES) {
+    const match = location.hash.match(pattern);
+    if (match) return page(match[1]);
+  }
+  go("/");
+}
+
+function go(path) {
+  const hash = `#${path}`;
+  if (location.hash === hash) renderPage().catch(() => showMessage("Could not reach the server."));
+  else location.hash = hash; // the hashchange listener renders it
 }
 
 // An invite link puts its secret after "#". Take it out of the address bar straight away.
-const inviteMatch = location.hash.match(/^#invite=([A-Za-z0-9_-]{20,100})$/);
-if (inviteMatch) {
-  history.replaceState(null, "", location.pathname);
-  setPendingInvite(inviteMatch[1]);
-  showInvite(inviteMatch[1]).catch(() => showMessage("Could not reach the server."));
-} else {
-  start();
+function handleAddress() {
+  const invite = location.hash.match(/^#invite=([A-Za-z0-9_-]{20,100})$/);
+  if (invite) {
+    history.replaceState(null, "", location.pathname);
+    setPendingInvite(invite[1]);
+    return showInvite(invite[1]);
+  }
+  return renderPage();
 }
+
+window.addEventListener("hashchange", () => handleAddress().catch(() => showMessage("Could not reach the server.")));
+handleAddress().catch(() => showMessage("Could not reach the server."));
