@@ -15,3 +15,27 @@ export function isValidRole(orgType, role) {
 export function canUseCode(orgType, role) {
   return role === "owner" || (orgType === "agency" && role === "admin");
 }
+
+// Plain-language names shown in the portal.
+export const ROLE_LABELS = {
+  owner: "Owner", staff: "Staff", admin: "Admin", member: "Member", editor: "Editor", viewer: "Viewer",
+};
+
+// Which roles someone may hand out (invite as, change to, or remove) in a team.
+// access comes from getOrgAccess (src/tenancy.js).
+//   - an owner manages every role in their own organisation
+//   - an agency admin manages admins and members, never owners
+//   - a Wraperers platform owner can manage any team, for support (audit-logged)
+//   - everyone else (members, editors, viewers, platform staff) manages nothing
+export function assignableRoles(access) {
+  if (!access) return [];
+  const all = ORG_ROLES[access.org.type] ?? [];
+  if (access.platformAccess) return access.role === "owner" ? all : [];
+  if (access.role === "owner") return all;
+  if (access.org.type === "agency" && access.role === "admin") return ["admin", "member"];
+  return [];
+}
+
+// Only the Wraperers platform owner creates new agency and brand organisations for now.
+// (Agencies creating brands for their clients comes with milestone 4.)
+export const CREATABLE_ORG_TYPES = ["agency", "brand"];

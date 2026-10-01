@@ -20,7 +20,7 @@ body {
 
 .card {
   width: 100%;
-  max-width: 460px;
+  max-width: 560px;
   padding: 32px;
   background: #fff;
   border-radius: 18px;
@@ -43,7 +43,9 @@ p { margin: 0 0 10px; line-height: 1.45; }
 
 .field { display: block; margin: 14px 0; }
 .field span { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.92rem; }
-.field input {
+.field input,
+.field select,
+select.small {
   width: 100%;
   padding: 12px;
   font: inherit;
@@ -53,6 +55,7 @@ p { margin: 0 0 10px; line-height: 1.45; }
   border-radius: 10px;
 }
 .field input:focus-visible,
+select:focus-visible,
 .button:focus-visible,
 .link:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
 
@@ -127,3 +130,10 @@ p { margin: 0 0 10px; line-height: 1.45; }
   font-size: 0.9rem;
 }
 .status.bad { background: #FBDCD5; }
+
+select.small { width: auto; padding: 6px 8px; border-radius: 8px; font-size: 0.88rem; }
+.link.inline { display: inline; margin: 0; text-align: left; }
+.link.danger { color: #B3261E; }
+.actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.list li { border-bottom: 1px solid var(--bg); }
+.list li > div:first-child { min-width: 0; overflow-wrap: anywhere; }

@@ -1,5 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { hashPassword } from "../src/auth/password.js";
+import { totpCode, currentStep } from "../src/auth/totp.js";
 
 const id = () => crypto.randomUUID();
 
@@ -71,6 +72,17 @@ export function makeClient() {
     },
     get: (path) => client.request("GET", path),
     post: (path, body) => client.request("POST", path, body ?? {}),
+    patch: (path, body) => client.request("PATCH", path, body ?? {}),
+    delete: (path) => client.request("DELETE", path, {}),
   };
   return client;
+}
+
+// Takes a fresh client through password + authenticator setup. Returns a fully signed-in client.
+export async function signInFully(email, password) {
+  const client = makeClient();
+  await client.post("/api/auth/login", { email, password });
+  const start = await client.post("/api/auth/two-step/setup/start");
+  const confirm = await client.post("/api/auth/two-step/setup/confirm", { code: await totpCode(start.body.secret, currentStep()) });
+  return { client, secret: start.body.secret, backupCodes: confirm.body.backupCodes };
 }

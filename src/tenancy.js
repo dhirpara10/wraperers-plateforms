@@ -41,6 +41,35 @@ export async function getStoreAccess(db, userId, storeId) {
   return { store, role, orgType: org_type, platformAccess: org_type === "platform" };
 }
 
+// Organisation (team) access, same rule as stores: members of the organisation,
+// or members of the platform organisation (flagged so the caller audit-logs it).
+// Returns { org, role, platformAccess } or null.
+export async function getOrgAccess(db, userId, orgId) {
+  if (!userId || !orgId) return null;
+  const row = await db
+    .prepare(
+      `SELECT t.id, t.type, t.name, m.role AS role, (m.organisation_id = t.id) AS direct
+         FROM organisations t
+         JOIN memberships m ON m.user_id = ?1
+         JOIN organisations o ON o.id = m.organisation_id
+        WHERE t.id = ?2
+          AND (m.organisation_id = t.id OR o.type = 'platform')
+        ORDER BY direct DESC
+        LIMIT 1`
+    )
+    .bind(userId, orgId)
+    .first();
+  if (!row) return null;
+  const { role, direct, ...org } = row;
+  return { org, role, platformAccess: direct !== 1 };
+}
+
+export async function requireOrgAccess(db, userId, orgId) {
+  const access = await getOrgAccess(db, userId, orgId);
+  if (!access) throw new AccessDenied();
+  return access;
+}
+
 // Same as getStoreAccess but throws, and can require specific roles.
 export async function requireStoreAccess(db, userId, storeId, roles = null) {
   const access = await getStoreAccess(db, userId, storeId);
